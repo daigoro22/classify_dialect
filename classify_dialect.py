@@ -6,7 +6,8 @@ import pandas as pd
 from chainer import initializers, training, iterators, optimizers
 from chainer.training import extensions
 from chainer import Variable
-import numpy as np
+#import numpy as np
+import cupy as np
 
 class DialectClassifier(chainer.Chain):
     
@@ -20,7 +21,7 @@ class DialectClassifier(chainer.Chain):
     
     def sequence_embed(self,embed, xs):
         x_len = [len(x) for x in xs]
-        x_section = np.cumsum(x_len[:-1])
+        x_section = np.cumsum(x_len[:-1]).astype(np.int32).tolist()
         ex = embed(F.concat(xs, axis=0))
         exs = F.split_axis(ex, x_section, 0)
         return list(exs)
@@ -28,7 +29,7 @@ class DialectClassifier(chainer.Chain):
     def __call__(self,dialect,standard):
         h_emb_d = self.sequence_embed(self.embed_d,dialect)
         h2,_,_ = self.lstm(None,None,h_emb_d)
-        return self.categ(h2[0]).data
+        return self.categ(h2[0])
 
 if __name__ == "__main__":
     BATCH_SIZE = 60
@@ -39,6 +40,7 @@ if __name__ == "__main__":
         n_embed=300,
         n_lstm=600
     ),label_key='category')
+    model.to_gpu()
 
     wd = WordAndCategDict('spm/dialect_standard.model','corpus/all_pft.txt')
 
@@ -71,12 +73,12 @@ if __name__ == "__main__":
     updater = training.StandardUpdater(
         iter_train,
         optimizer,
-        device=-1,
+        device=0,
         converter=batch_converter
     )
 
-    trainer = training.Trainer(updater,(100,'epoch'),out='result')
-    trainer.extend(extensions.Evaluator(iter_test, model,device=-1,converter=batch_converter))
+    trainer = training.Trainer(updater,(1000,'epoch'),out='result')
+    trainer.extend(extensions.Evaluator(iter_test, model,device=0,converter=batch_converter))
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(['epoch', 'main/loss', 'main/accuracy',
                                                     'validation/main/loss', 'validation/main/accuracy', 'elapsed_time']))
