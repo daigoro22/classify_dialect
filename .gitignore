@@ -1,0 +1,6 @@
+classify_dialect_env/
+result/
+corpus/
+spm/
+__pycache__/
+.vscode/
