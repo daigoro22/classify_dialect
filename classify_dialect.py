@@ -29,7 +29,8 @@ class DialectClassifier(chainer.Chain):
     def __call__(self,dialect,standard):
         h_emb_d = self.sequence_embed(self.embed_d,dialect)
         h2,_,_ = self.lstm(None,None,h_emb_d)
-        return self.categ(h2[0])
+        h3 = F.relu(h2[0])
+        return self.categ(h3)
 
 if __name__ == "__main__":
     BATCH_SIZE = 60
@@ -83,5 +84,8 @@ if __name__ == "__main__":
     trainer.extend(extensions.PrintReport(['epoch', 'main/loss', 'main/accuracy',
                                                     'validation/main/loss', 'validation/main/accuracy', 'elapsed_time']))
     trainer.extend(extensions.dump_graph('main/loss'))
+    trainer.extend(extensions.PlotReport(['main/loss','main/accuracy'],
+                                            x_key='epoch',
+                                            file_name='loss.png'))
     trainer.extend(extensions.ProgressBar())
     trainer.run()
