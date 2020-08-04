@@ -35,7 +35,7 @@ class DialectClassifier(chainer.Chain):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-e','-epoch',type=int,default=100)
+    parser.add_argument('-e','--epoch',type=int,default=100)
     args = parser.parse_args()
 
     BATCH_SIZE = 60
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         converter=batch_converter
     )
 
-    trainer = training.Trainer(updater,(args.e,'epoch'),out='result')
+    trainer = training.Trainer(updater,(args.epoch,'epoch'),out='result')
     trainer.extend(extensions.Evaluator(iter_test, model,device=0,converter=batch_converter))
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(['epoch', 'main/loss', 'main/accuracy',

@@ -25,6 +25,17 @@ class WordAndCategDict():
     
     def itoc(self,index):
         return self.__itoc[i]
+    
+    def decode_sentence(self,line):
+        return self.sp.decode(line)
+    
+    def encode_as_pieces(self,line):
+        if line is not np.nan:
+            pieces = [p.replace('▁','') for p in self.sp.EncodeAsPieces(line)]
+            pieces = [p for p in pieces if p is not '']
+        else:
+            pieces = []
+        return pieces
 
 if __name__ == "__main__":
     wcd = WordAndCategDict()
