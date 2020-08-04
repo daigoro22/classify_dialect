@@ -4,3 +4,6 @@ corpus/
 spm/
 __pycache__/
 .vscode/
+nohup.out
+result*.txt
+fasttext_model/

@@ -25,3 +25,9 @@ class WordAndCategDict():
     
     def itoc(self,index):
         return self.__itoc[i]
+
+if __name__ == "__main__":
+    wcd = WordAndCategDict()
+
+    i = wcd.stoi('ヘロサギーデモ')
+    print(i)

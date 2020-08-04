@@ -8,6 +8,7 @@ from chainer.training import extensions
 from chainer import Variable
 #import numpy as np
 import cupy as np
+import argparse
 
 class DialectClassifier(chainer.Chain):
     
@@ -33,6 +34,10 @@ class DialectClassifier(chainer.Chain):
         return self.categ(h3)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-e','-epoch',type=int,default=100)
+    args = parser.parse_args()
+
     BATCH_SIZE = 60
 
     model = L.Classifier(DialectClassifier(
@@ -78,14 +83,19 @@ if __name__ == "__main__":
         converter=batch_converter
     )
 
-    trainer = training.Trainer(updater,(1000,'epoch'),out='result')
+    trainer = training.Trainer(updater,(args.e,'epoch'),out='result')
     trainer.extend(extensions.Evaluator(iter_test, model,device=0,converter=batch_converter))
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(['epoch', 'main/loss', 'main/accuracy',
                                                     'validation/main/loss', 'validation/main/accuracy', 'elapsed_time']))
     trainer.extend(extensions.dump_graph('main/loss'))
-    trainer.extend(extensions.PlotReport(['main/loss','main/accuracy'],
-                                            x_key='epoch',
-                                            file_name='loss.png'))
+    trainer.extend(extensions.PlotReport(
+        ['main/loss','validation/main/loss'],
+        x_key='epoch',
+        file_name='loss.png'))
+    trainer.extend(extensions.PlotReport(
+        ['main/accuracy','validation/main/accuracy'],
+        x_key='epoch',
+        file_name='accuracy.png'))
     trainer.extend(extensions.ProgressBar())
     trainer.run()
