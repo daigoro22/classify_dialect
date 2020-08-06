@@ -34,7 +34,7 @@ class WordAndCategDict():
             pieces = [p.replace('▁','') for p in self.sp.EncodeAsPieces(line)]
             pieces = [p for p in pieces if p is not '']
         else:
-            pieces = []
+            pieces = ['<unk>']
         return pieces
 
 if __name__ == "__main__":

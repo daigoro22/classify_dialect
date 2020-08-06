@@ -12,8 +12,9 @@ import argparse
 
 class DialectClassifier(chainer.Chain):
     
-    def __init__(self,n_vocab,n_categ,n_embed,n_lstm):
+    def __init__(self,n_vocab,n_categ,n_embed,n_lstm,fasttext):
         super(DialectClassifier,self).__init__()
+        self.fasttext = fasttext
         with self.init_scope():
             self.embed_d = L.EmbedID(n_vocab,n_embed)
             self.embed_c = L.EmbedID(n_vocab,n_embed)
@@ -28,7 +29,10 @@ class DialectClassifier(chainer.Chain):
         return list(exs)
 
     def __call__(self,dialect,standard):
-        h_emb_d = self.sequence_embed(self.embed_d,dialect)
+        if self.fasttext:
+            h_emb_d = dialect 
+        else:
+            h_emb_d = self.sequence_embed(self.embed_d,dialect)
         h2,_,_ = self.lstm(None,None,h_emb_d)
         h3 = F.relu(h2[0])
         return self.categ(h3)
@@ -36,6 +40,7 @@ class DialectClassifier(chainer.Chain):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-e','--epoch',type=int,default=100)
+    parser.add_argument('-ft','--fasttext',action='store_true')
     args = parser.parse_args()
 
     BATCH_SIZE = 60
@@ -43,15 +48,23 @@ if __name__ == "__main__":
     model = L.Classifier(DialectClassifier(
         n_vocab=16000,
         n_categ=48,
-        n_embed=300,
-        n_lstm=600
+        n_embed=100 if args.fasttext else 300,
+        n_lstm=600,
+        fasttext=args.fasttext
     ),label_key='category')
     model.to_gpu()
 
     wd = WordAndCategDict('spm/dialect_standard.model','corpus/all_pft.txt')
 
-    df_train = pd.read_pickle('corpus/train.pkl')
-    df_test = pd.read_pickle('corpus/test.pkl')
+    if args.fasttext:
+        train_dataset_path = 'corpus/train_ft.pkl'
+        test_dataset_path = 'corpus/test_ft.pkl'
+    else:
+        train_dataset_path = 'corpus/train'
+        test_dataset_path = 'corpus/test'
+
+    df_train = pd.read_pickle(train_dataset_path)
+    df_test = pd.read_pickle(test_dataset_path)
 
     # print(df_train.head())
     
