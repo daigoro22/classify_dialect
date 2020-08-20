@@ -36,6 +36,14 @@ class WordAndCategDict():
         else:
             pieces = ['<unk>']
         return pieces
+    
+    def decode_as_pieces(self,line):
+        if line is not np.nan:
+            pieces = [p.replace('▁','') for p in self.sp.id_to_piece(line)]
+            pieces = [p for p in pieces if p is not '']
+        else:
+            pieces = ['<unk>']
+        return pieces
 
 if __name__ == "__main__":
     wcd = WordAndCategDict()
