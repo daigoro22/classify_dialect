@@ -8,7 +8,8 @@ class WordAndCategDict():
         self.sp = spm.SentencePieceProcessor(model_file=model_path)
         self.vocab_size = self.sp.get_piece_size()
         with open(categ_path,'r') as f:
-            self.__itoc = list(set([c.strip() for c in f]))
+            categ_list = [c.strip() for c in f]
+            self.__itoc = sorted(set(categ_list),key=categ_list.index)
         self.__ctoi = {c:i for i,c in enumerate(self.__itoc)}
 
     def itos(self,line):
@@ -24,7 +25,10 @@ class WordAndCategDict():
         return np.array(self.__ctoi[categ],dtype=np.int32)
     
     def itoc(self,index):
-        return self.__itoc[i]
+        return self.__itoc[index]
+    
+    def categories(self):
+        return self.__itoc
     
     def decode_sentence(self,line):
         return self.sp.decode(line)
@@ -46,7 +50,6 @@ class WordAndCategDict():
         return pieces
 
 if __name__ == "__main__":
-    wcd = WordAndCategDict()
-
-    i = wcd.stoi('ヘロサギーデモ')
-    print(i)
+    wcd1 = WordAndCategDict()
+    wcd2 = WordAndCategDict()
+    print(wcd2.categories())

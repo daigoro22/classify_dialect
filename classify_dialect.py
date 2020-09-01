@@ -108,6 +108,9 @@ if __name__ == "__main__":
 
     trainer = training.Trainer(updater,(args.epoch,'epoch'),out='result')
     trainer.extend(extensions.Evaluator(iter_test, model,device=0,converter=bc))
+    snapshot_writer = training.extensions.snapshot_writers.ThreadQueueWriter()
+    trainer.extend(training.extensions.snapshot_object(model, 'model.npz', 
+        writer=snapshot_writer),trigger=(10,'epoch'))
 
     if args.area_classify:
         print_list = ['epoch', 'main/loss', 'main/accuracy',
@@ -126,7 +129,7 @@ if __name__ == "__main__":
 
     trainer.extend(extensions.LogReport())
     trainer.extend(extensions.PrintReport(print_list))
-    # trainer.extend(extensions.dump_graph('main/loss'))
+    trainer.extend(extensions.dump_graph('main/loss'))
     for tag,plot in plot_list:
         trainer.extend(extensions.PlotReport(
             plot,

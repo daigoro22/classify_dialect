@@ -31,6 +31,23 @@ class DialectAndAreaClassifier(chainer.Chain):
         chainer.report({'acc_categ':acc_categ},self)
         chainer.report({'acc_area':acc_area},self)
         return loss
+    
+    def predict(self,dialect,standard):
+        h_emb_d = dialect 
+        h2,_,_ = self.lstm(None,None,h_emb_d)
+        h3 = F.relu(h2[0])
+        pred_categ = np.argmax(np.array(self.categ(h3).data),axis=1,dtype=np.int32)
+        pred_area = np.argmax(np.array(self.area(h3).data),axis=1,dtype=np.int32)
+        
+        return pred_categ,pred_area
+    
+    def pred_area(self,dialect,standard):
+        _,pred_area = self.predict(dialect,standard)
+        return pred_area
+    
+    def pred_categ(self,dialect,standard):
+        pred_categ,_ = self.predict(dialect,standard)
+        return pred_categ
 
 def batch_converter_area(batch,device):
     dialect = [np.array(b[0]) for b in batch]
