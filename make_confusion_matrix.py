@@ -32,8 +32,8 @@ if __name__ == "__main__":
 
     pred_categ, pred_area = model.predict(X_dialect,X_standard)
 
-    cm_categ = confusion_matrix(Y_categ,pred_categ.tolist(),normalize='pred')
-    cm_area = confusion_matrix(Y_area,pred_area.tolist(),normalize='pred')
+    cm_categ = confusion_matrix(Y_categ,pred_categ.tolist(),normalize='all')
+    cm_area = confusion_matrix(Y_area,pred_area.tolist(),normalize='all')
 
     np.savez('result/cmat',pref=cm_categ,area=cm_area)
 
