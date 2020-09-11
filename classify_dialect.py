@@ -79,8 +79,8 @@ if __name__ == "__main__":
         train_dataset_path = 'corpus/train_ft.pkl'
         test_dataset_path = 'corpus/test_ft.pkl'
     elif args.area_classify:
-        train_dataset_path = 'corpus/train_ft_area.pkl'
-        test_dataset_path = 'corpus/test_ft_area.pkl'
+        train_dataset_path = 'corpus/concat_corpus_inc_train_ft_area_os.pkl'
+        test_dataset_path = 'corpus/concat_corpus_inc_test_ft_area.pkl'
     else:
         train_dataset_path = 'corpus/train.pkl'
         test_dataset_path = 'corpus/test.pkl'

@@ -4,6 +4,7 @@ import numpy as np
 from word_and_categ_dict import WordAndCategDict
 import argparse
 import fasttext
+import os
 
 def apply_func_to_columns(data_frame,func,columns):
     for c in columns:
@@ -46,9 +47,13 @@ if __name__ == "__main__":
         func = wcdict.stoi
         model_postfix = ''
 
-    for tag,_df in zip(['train','test','valid'],[train,test,valid]):
+    for tag,_df in zip(['_train','_test','_valid'],[train,test,valid]):
         applied = apply_func_to_columns(_df,func,apply_func_columns)
         applied = apply_func_to_columns(applied,wcdict.ctoi,apply_ctoi_columns)
         applied = apply_func_to_columns(applied,wcdict_area.ctoi,apply_atoi_columns)
-        pkl_file = 'corpus/{}{}{}.pkl'.format(tag,model_postfix,data_postfix)
+        pkl_file = 'corpus/{}{}{}{}.pkl'.format(
+            os.path.basename(args.corpus).split('.')[0],
+            tag,
+            model_postfix,
+            data_postfix)
         applied.to_pickle(pkl_file)
