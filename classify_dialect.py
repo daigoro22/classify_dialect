@@ -12,6 +12,8 @@ import argparse
 from dialect_and_area_classifier import(
     DialectAndAreaClassifier,
     batch_converter_area)
+from cb_loss_classifier import CbLossClassifier
+from class_balanced_loss import get_samples_per_cls
 
 class DialectClassifier(chainer.Chain):
     def __init__(self,n_vocab,n_categ,n_embed,n_lstm,fasttext):
@@ -50,12 +52,44 @@ if __name__ == "__main__":
     parser.add_argument('-e','--epoch',type=int,default=100)
     parser.add_argument('-ft','--fasttext',action='store_true')
     parser.add_argument('-ac','--area_classify',action='store_true')
+    parser.add_argument('-cb','--cb_loss',action='store_true')
     args = parser.parse_args()
 
     BATCH_SIZE = 60
 
+    wd = WordAndCategDict('spm/dialect_standard.model','corpus/all_pft.txt')
+
+    if args.fasttext:
+        train_dataset_path = 'corpus/train_ft.pkl'
+        test_dataset_path = 'corpus/test_ft.pkl'
+    elif args.area_classify or args.cb_loss:
+        train_dataset_path = 'corpus/train_ft_area.pkl'
+        test_dataset_path = 'corpus/test_ft_area.pkl'
+    else:
+        train_dataset_path = 'corpus/train.pkl'
+        test_dataset_path = 'corpus/test.pkl'
+
+    df_train = pd.read_pickle(train_dataset_path)
+    df_test = pd.read_pickle(test_dataset_path)
+
+    dataset_train = chainer.datasets.TupleDataset(
+        *[df_train[c].values for c in df_train.columns])
+    dataset_test = chainer.datasets.TupleDataset(
+        *[df_test[c].values for c in df_test.columns])
+
     if args.area_classify:
         model = DialectAndAreaClassifier(
+            n_categ=48,
+            n_embed=100,
+            n_lstm=600,
+            n_area=8
+        )
+        bc = batch_converter_area
+    elif args.cb_loss:
+        spc_list = get_samples_per_cls(df_train,'PFT')
+        model = CbLossClassifier(
+            spc_list=spc_list,
+            beta=0.9,
             n_categ=48,
             n_embed=100,
             n_lstm=600,
@@ -72,26 +106,6 @@ if __name__ == "__main__":
         ),label_key='category')
         bc = batch_converter
     model.to_gpu()
-
-    wd = WordAndCategDict('spm/dialect_standard.model','corpus/all_pft.txt')
-
-    if args.fasttext:
-        train_dataset_path = 'corpus/train_ft.pkl'
-        test_dataset_path = 'corpus/test_ft.pkl'
-    elif args.area_classify:
-        train_dataset_path = 'corpus/train_ft_area.pkl'
-        test_dataset_path = 'corpus/test_ft_area.pkl'
-    else:
-        train_dataset_path = 'corpus/train.pkl'
-        test_dataset_path = 'corpus/test.pkl'
-
-    df_train = pd.read_pickle(train_dataset_path)
-    df_test = pd.read_pickle(test_dataset_path)
-
-    dataset_train = chainer.datasets.TupleDataset(
-        *[df_train[c].values for c in df_train.columns])
-    dataset_test = chainer.datasets.TupleDataset(
-        *[df_test[c].values for c in df_test.columns])
 
     iter_train = iterators.SerialIterator(dataset_train,BATCH_SIZE,shuffle=True)
     iter_test = iterators.SerialIterator(dataset_test,BATCH_SIZE,shuffle=False,repeat=False)
@@ -112,7 +126,7 @@ if __name__ == "__main__":
     trainer.extend(training.extensions.snapshot_object(model, 'model.npz', 
         writer=snapshot_writer),trigger=(10,'epoch'))
 
-    if args.area_classify:
+    if args.area_classify or args.cb_loss:
         print_list = ['epoch', 'main/loss', 'main/accuracy',
             'validation/main/loss', 'validation/main/accuracy', 
             'validation/main/acc_categ','validation/main/acc_area'

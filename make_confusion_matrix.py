@@ -7,19 +7,31 @@ from sklearn.metrics import ConfusionMatrixDisplay
 from dialect_and_area_classifier import DialectAndAreaClassifier
 import matplotlib.pyplot as plt
 from word_and_categ_dict import WordAndCategDict
+from cb_loss_classifier import CbLossClassifier
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-m','--model',type=str,default='result/model.npz')
     parser.add_argument('-ts','--test_dataset',type=str,default='corpus/test_ft_area.pkl')
+    parser.add_argument('-mt','--model_type',choices=['DAC','CB'],default='CB')
     args = parser.parse_args()
     
-    model = DialectAndAreaClassifier(
-        n_categ=48,
-        n_embed=100,
-        n_lstm=600,
-        n_area=8
-    )
+    if args.model_type == 'DAC':
+        model = DialectAndAreaClassifier(
+            n_categ=48,
+            n_embed=100,
+            n_lstm=600,
+            n_area=8
+        )
+    elif args.model_type == 'CB':
+        model = CbLossClassifier(
+            spc_list=[],
+            beta=0.9,
+            n_categ=48,
+            n_embed=100,
+            n_lstm=600,
+            n_area=8
+        )
     chainer.serializers.load_npz(args.model,model)
 
     df_test = pd.read_pickle(args.test_dataset)
