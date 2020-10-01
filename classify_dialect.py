@@ -14,6 +14,9 @@ from dialect_and_area_classifier import(
     batch_converter_area)
 from cb_loss_classifier import CbLossClassifier
 from class_balanced_loss import get_samples_per_cls
+from make_confusion_matrix import(
+    get_confusion_matrix_DAC,
+    save_cmat_fig)
 
 class DialectClassifier(chainer.Chain):
     def __init__(self,n_vocab,n_categ,n_embed,n_lstm,fasttext):
@@ -52,17 +55,20 @@ if __name__ == "__main__":
     parser.add_argument('-e','--epoch',type=int,default=100)
     parser.add_argument('-ft','--fasttext',action='store_true')
     parser.add_argument('-ac','--area_classify',action='store_true')
-    parser.add_argument('-cb','--cb_loss',action='store_true')
+    parser.add_argument('-cb','--cb_loss',type=float,default=None)
+    parser.add_argument('-d','--desc',type=str,default='')
+    parser.add_argument('rd''--result_directory',type=str,default='')
     args = parser.parse_args()
 
     BATCH_SIZE = 60
 
     wd = WordAndCategDict('spm/dialect_standard.model','corpus/all_pft.txt')
+    wd_area = WordAndCategDict(categ_path='corpus/all_area.txt')
 
     if args.fasttext:
         train_dataset_path = 'corpus/train_ft.pkl'
         test_dataset_path = 'corpus/test_ft.pkl'
-    elif args.area_classify or args.cb_loss:
+    elif args.area_classify or args.cb_loss != None:
         train_dataset_path = 'corpus/train_ft_area.pkl'
         test_dataset_path = 'corpus/test_ft_area.pkl'
     else:
@@ -85,11 +91,11 @@ if __name__ == "__main__":
             n_area=8
         )
         bc = batch_converter_area
-    elif args.cb_loss:
+    elif args.cb_loss != None:
         spc_list = get_samples_per_cls(df_train,'PFT')
         model = CbLossClassifier(
             spc_list=spc_list,
-            beta=0.9,
+            beta=args.cb_loss,
             n_categ=48,
             n_embed=100,
             n_lstm=600,
@@ -123,10 +129,12 @@ if __name__ == "__main__":
     trainer = training.Trainer(updater,(args.epoch,'epoch'),out='result')
     trainer.extend(extensions.Evaluator(iter_test, model,device=0,converter=bc))
     snapshot_writer = training.extensions.snapshot_writers.ThreadQueueWriter()
-    trainer.extend(training.extensions.snapshot_object(model, 'model.npz', 
+    trainer.extend(training.extensions.snapshot_object(
+        target=model, 
+        filename='{}/model_{}.npz'.format(args.result_directory,args.desc), 
         writer=snapshot_writer),trigger=(10,'epoch'))
 
-    if args.area_classify or args.cb_loss:
+    if args.area_classify or args.cb_loss != None:
         print_list = ['epoch', 'main/loss', 'main/accuracy',
             'validation/main/loss', 'validation/main/accuracy', 
             'validation/main/acc_categ','validation/main/acc_area'
@@ -148,6 +156,10 @@ if __name__ == "__main__":
         trainer.extend(extensions.PlotReport(
             plot,
             x_key='epoch',
-            file_name='{}.png'.format(tag)))
+            file_name='{}/{}_{}.png'.format(args.result_directory,tag,args.desc)))
     trainer.extend(extensions.ProgressBar())
     trainer.run()
+
+    cm_categ,cm_area = get_confusion_matrix_DAC(df_test,model)
+    save_cmat_fig(cm_categ,wd.categories(),'result/{}/cmat_categ_{}'.format(args.result_directory,args.desc))
+    save_cmat_fig(cm_area,wd_area.categories(),'result/{}/cmat_area_{}'.format(args.result_directory,args.desc))

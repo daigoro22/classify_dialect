@@ -2,7 +2,7 @@ import chainer
 import chainer.links as L
 import chainer.functions as F
 import cupy as np
-from class_balanced_loss import cb_loss
+from class_balanced_loss import cb_loss_weight
 
 class CbLossClassifier(chainer.Chain):
     def __init__(self,spc_list,beta,n_categ,n_area,n_embed,n_lstm):
@@ -21,7 +21,10 @@ class CbLossClassifier(chainer.Chain):
         pred_categ = self.categ(h3)
         pred_area = self.area(h3)
 
-        loss_categ = cb_loss(pred_categ,category,self.beta,self.spc_list)
+        loss_categ_weight = cb_loss_weight(self.beta,self.spc_list)
+        loss_categ = F.softmax_cross_entropy(
+            pred_categ,category,
+            class_weight=loss_categ_weight)
         loss_area = F.softmax_cross_entropy(pred_area,area)
 
         acc_categ = F.accuracy(pred_categ,category)
