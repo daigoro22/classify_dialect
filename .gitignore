@@ -7,3 +7,5 @@ __pycache__/
 nohup.out
 result*.txt
 fasttext_model/
+.nfs*
+*.png

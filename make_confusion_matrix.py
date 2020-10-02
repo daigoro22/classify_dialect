@@ -10,12 +10,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from word_and_categ_dict import WordAndCategDict
 from cb_loss_classifier import CbLossClassifier
+import os
 
 def get_confusion_matrix_DAC(df_test,model,normalize='all'):
     Y_categ = [p.tolist() for p in df_test['PFT'].values]
     Y_area = [a.tolist() for a in df_test['AREA'].values]
-    X_dialect = [cp.array(d) for d in df_test['DIALECT'].values]
-    X_standard = [cp.array(s) for s in df_test['STANDARD'].values]
+    X_dialect = [np.array(d,dtype=np.float32) for d in df_test['DIALECT'].values]
+    X_standard = [np.array(s,dtype=np.float32) for s in df_test['STANDARD'].values]
     pred_categ, pred_area = model.predict(X_dialect,X_standard)
     cm_categ = confusion_matrix(Y_categ,pred_categ.tolist(),normalize=normalize)
     cm_area = confusion_matrix(Y_area,pred_area.tolist(),normalize=normalize)
@@ -60,18 +61,10 @@ if __name__ == "__main__":
 
     df_test = pd.read_pickle(args.test_dataset)
     cm_categ,cm_area = get_confusion_matrix_DAC(df_test,model)
-    np.savez('result/cmat',pref=cm_categ,area=cm_area)
-
-    wc_categ = WordAndCategDict()
-    wc_area = WordAndCategDict(categ_path='corpus/all_area.txt')
-    
-    plt.figure(figsize=(10,10))
-    cmd_categ = ConfusionMatrixDisplay(cm_categ,display_labels=wc_categ.categories()).plot(
-        xticks_rotation='vertical'
-        #ax=ax
-    )
-    plt.savefig('result/cmat_categ.png')
-
-    cmd_area = ConfusionMatrixDisplay(cm_area,display_labels=wc_area.categories()).plot()
-    plt.savefig('result/cmat_area.png')
+    # np.savez('result/cmat',pref=cm_categ,area=cm_area)
+    wd = WordAndCategDict()
+    save_cmat_fig(
+        cm_categ,
+        wd.categories(),
+        'cmat_'+os.path.basename(args.model).split('.')[0])
 

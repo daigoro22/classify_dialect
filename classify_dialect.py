@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser.add_argument('-ac','--area_classify',action='store_true')
     parser.add_argument('-cb','--cb_loss',type=float,default=None)
     parser.add_argument('-d','--desc',type=str,default='')
-    parser.add_argument('rd''--result_directory',type=str,default='')
+    parser.add_argument('-rd','--result_directory',type=str,default='')
     args = parser.parse_args()
 
     BATCH_SIZE = 60
