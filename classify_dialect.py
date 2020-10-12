@@ -50,6 +50,12 @@ def batch_converter(batch,device):
     category = np.array([b[2] for b in batch],dtype=np.int32)
     return {'dialect':dialect,'standard':standard,'category':category}
 
+def get_iter(df:pd.DataFrame,batch_size:int,shuffle:bool,repeat:bool):
+    _dataset_train = chainer.datasets.TupleDataset(
+        *[df[c].values for c in df.columns])
+    _iter = iterators.SerialIterator(_dataset_train,batch_size,shuffle=shuffle,repeat=repeat)
+    return _iter
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-e','--epoch',type=int,default=100)

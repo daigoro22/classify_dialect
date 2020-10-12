@@ -1,6 +1,7 @@
 classify_dialect_env/
 result/
 corpus/
+optuna/
 spm/
 __pycache__/
 .vscode/

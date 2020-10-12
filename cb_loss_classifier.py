@@ -34,6 +34,7 @@ class CbLossClassifier(chainer.Chain):
         accuracy = (acc_categ + acc_area) / 2
         chainer.report({'loss':loss},self)
         chainer.report({'accuracy':accuracy},self)
+        chainer.report({'loss_categ':loss_categ},self)
         chainer.report({'acc_categ':acc_categ},self)
         chainer.report({'acc_area':acc_area},self)
         return loss
