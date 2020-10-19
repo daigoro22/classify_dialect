@@ -64,15 +64,8 @@ def get_trainer_and_reporter(
         filename='model_{}.npz'.format(args.desc), 
         writer=snapshot_writer),trigger=(10,'epoch'))
 
-    print_list = ['epoch', 'main/loss', 'main/accuracy',
-        'validation/main/loss', 'validation/main/accuracy', 
-        'validation/main/acc_categ','validation/main/acc_area'
-        'elapsed_time']
-
     reporter = extensions.LogReport()
     trainer.extend(reporter)
-    trainer.extend(extensions.PrintReport(print_list))
-    trainer.extend(extensions.ProgressBar())
 
     trainer.extend(integration.ChainerPruningExtension(
         trial,args.pruning_key,(args.pruning_trigger_epoch,'epoch')))
@@ -121,11 +114,11 @@ if __name__ == "__main__":
             device=0
         )
         trainer.run()
-        (epoch,best_loss) = get_bestresult(reporter.log,'main/loss')
+        (epoch,best_loss) = get_bestresult(reporter.log,args_cl.pruning_key)
         return best_loss
     
     study = create_study(study_name=args_cl.optuna_output,
-                            storage=f'sqlite:///{args_cl.optuna_output}/optuna.db',
+                            storage=f'sqlite:///{args_cl.optuna_output}/optuna_{args_cl.desc}.db',
                             load_if_exists=True,
                             pruner=pruners.SuccessiveHalvingPruner())
     study.optimize(objective, n_trials=args_cl.n_trials) 
