@@ -5,7 +5,7 @@ optuna/
 spm/
 __pycache__/
 .vscode/
-nohup.out
+*.out
 result*.txt
 fasttext_model/
 .nfs*

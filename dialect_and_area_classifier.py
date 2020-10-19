@@ -28,6 +28,7 @@ class DialectAndAreaClassifier(chainer.Chain):
         accuracy = (acc_categ + acc_area) / 2
         chainer.reporter.report({'loss':loss},self)
         chainer.reporter.report({'accuracy':accuracy},self)
+        chainer.reporter.report({'loss_categ':loss_categ},self)    
         chainer.reporter.report({'acc_categ':acc_categ},self)
         chainer.reporter.report({'acc_area':acc_area},self)
         return loss
