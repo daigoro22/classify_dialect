@@ -21,7 +21,7 @@ from class_balanced_loss import get_samples_per_cls
 
 def get_model(trial:Trial,spc_list:list):
     n_lstm = trial.suggest_categorical('lstm',[100,300,600])
-    beta = trial.suggest_uniform('beta',0,1.0)
+    beta = 0.9#trial.suggest_uniform('beta',0,1.0)
     
     model = CbLossClassifier(
         spc_list = spc_list,
@@ -42,8 +42,8 @@ def get_trainer_and_reporter(
     args,
     device=0):
 
-    learning_rate = trial.suggest_loguniform('learning_rate', 1e-5, 1e-1)
-    grad_clipping = trial.suggest_uniform('grad_clipping',0,1.0)
+    learning_rate = 1e-5#trial.suggest_loguniform('learning_rate', 1e-5, 1e-1)
+    grad_clipping = 0.1#trial.suggest_uniform('grad_clipping',0,1.0)
 
     optimizer = optimizers.SGD(lr=learning_rate)
     optimizer.setup(model)
@@ -69,6 +69,9 @@ def get_trainer_and_reporter(
 
     trainer.extend(integration.ChainerPruningExtension(
         trial,args.pruning_key,(args.pruning_trigger_epoch,'epoch')))
+
+    iter_test.reset()
+    iter_train.reset()
 
     return trainer,reporter
 
