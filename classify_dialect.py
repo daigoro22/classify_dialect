@@ -3,8 +3,12 @@ import chainer
 import chainer.links as L
 import chainer.functions as F
 import pandas as pd
-from chainer import initializers, training, iterators, optimizers
-from chainer.training import extensions
+from chainer import(
+    initializers,
+    training,
+    iterators,
+    optimizers,
+    optimizer_hooks)
 from chainer import Variable
 #import numpy as np
 import cupy as np
@@ -18,6 +22,99 @@ from make_confusion_matrix import(
     get_confusion_matrix_DAC,
     save_cmat_fig)
 
+def get_model(spc_list:list,n_lstm:int,beta:float):
+    model = CbLossClassifier(
+        spc_list = spc_list,
+        n_lstm   = n_lstm,
+        beta     = beta,
+        n_embed  = 100,
+        n_categ  = 48,
+        n_area   = 8
+    )
+    return model
+
+def get_trainer_and_reporter(
+    model:CbLossClassifier,
+    df_test:pd.DataFrame,
+    df_train:pd.DataFrame,
+    batch_size,
+    batch_converter,
+    args,
+    device,
+    print_list,
+    plot_list,
+    learning_rate=1e-5,
+    grad_clipping=0.5):
+
+    iter_train = get_iter(df_train,batch_size,shuffle=True ,repeat=True)
+    iter_test  = get_iter(df_test ,batch_size,shuffle=False,repeat=False)
+
+    optimizer = optimizers.SGD(lr=learning_rate)
+    optimizer.setup(model)
+    optimizer.add_hook(optimizer_hooks.GradientClipping(threshold=grad_clipping))
+
+    updater = training.StandardUpdater(
+        iter_train,
+        optimizer,
+        device=device,
+        converter=batch_converter
+    )
+
+    trainer = training.Trainer(updater,(args.epoch,'epoch'),out='result')
+    
+    ext_evaluator       = training.extensions.Evaluator(iter_test, model,device=device,converter=batch_converter)
+    ext_snapshot_object = training.extensions.snapshot_object(
+        target   = model, 
+        filename = 'model_{}.npz'.format(args.desc), 
+        writer   = training.extensions.snapshot_writers.ThreadQueueWriter())
+    ext_reporter        = training.extensions.LogReport()
+    ext_printreport     = training.extensions.PrintReport(print_list)
+    ext_plotreport_list = []
+    for tag,plot in plot_list:
+        ext_plotreport_list.append(
+            training.extensions.PlotReport(
+                plot,
+                x_key     = 'epoch',
+                file_name = '{}/{}_{}.png'.format(args.result_directory,tag,args.desc))
+        )
+    ext_dump_graph      = training.extensions.dump_graph('main/loss')
+    ext_progress_bar    = training.extensions.ProgressBar()
+
+    trainer.extend(ext_evaluator)
+    trainer.extend(ext_snapshot_object,trigger=(10,'epoch'))
+    trainer.extend(ext_reporter)
+    trainer.extend(ext_printreport)
+    for pl in ext_plotreport_list:
+        trainer.extend(pl)
+    trainer.extend(ext_dump_graph)
+    trainer.extend(ext_progress_bar)
+
+    iter_test.reset()
+    iter_train.reset()
+
+    return trainer,ext_reporter
+
+def get_model_trainer_reporter(
+    spc_list,
+    n_lstm,
+    beta,
+    df_test:pd.DataFrame,
+    df_train:pd.DataFrame,
+    batch_size,
+    batch_converter,
+    args,
+    device,
+    print_list,
+    plot_list,
+    learning_rate=1e-5,
+    grad_clipping=0.5):
+
+    model = get_model(spc_list,n_lstm,beta)
+    trainer,reporter = get_trainer_and_reporter(
+        model,df_test,df_train,batch_size,batch_converter,args,device,print_list,plot_list,learning_rate,grad_clipping
+    )
+    return model,trainer,reporter
+
 class DialectClassifier(chainer.Chain):
     def __init__(self,n_vocab,n_categ,n_embed,n_lstm,fasttext):
         super(DialectClassifier,self).__init__()
@@ -25,8 +122,8 @@ class DialectClassifier(chainer.Chain):
         with self.init_scope():
             self.embed_d = L.EmbedID(n_vocab,n_embed)
             self.embed_c = L.EmbedID(n_vocab,n_embed)
-            self.lstm = L.NStepLSTM(1,n_embed,n_lstm,dropout=0.2)
-            self.categ = L.Linear(None,n_categ)
+            self.lstm    = L.NStepLSTM(1,n_embed,n_lstm,dropout=0.2)
+            self.categ   = L.Linear(None,n_categ)
     
     def sequence_embed(self,embed, xs):
         x_len = [len(x) for x in xs]
@@ -40,12 +137,12 @@ class DialectClassifier(chainer.Chain):
             h_emb_d = dialect 
         else:
             h_emb_d = self.sequence_embed(self.embed_d,dialect)
-        h2,_,_ = self.lstm(None,None,h_emb_d)
-        h3 = F.relu(h2[0])
+        h2,_,_  = self.lstm(None,None,h_emb_d)
+        h3      = F.relu(h2[0])
         return self.categ(h3)
 
 def batch_converter(batch,device):
-    dialect = [np.array(b[0]) for b in batch]
+    dialect  = [np.array(b[0]) for b in batch]
     standard = [np.array(b[1]) for b in batch]
     category = np.array([b[2] for b in batch],dtype=np.int32)
     return {'dialect':dialect,'standard':standard,'category':category}
@@ -68,77 +165,54 @@ if __name__ == "__main__":
 
     BATCH_SIZE = 60
 
-    wd = WordAndCategDict('spm/dialect_standard.model','corpus/all_pft.txt')
+    wd      = WordAndCategDict('spm/dialect_standard.model','corpus/all_pft.txt')
     wd_area = WordAndCategDict(categ_path='corpus/all_area.txt')
 
     if args.fasttext:
         train_dataset_path = 'corpus/train_ft.pkl'
-        test_dataset_path = 'corpus/test_ft.pkl'
+        test_dataset_path  = 'corpus/test_ft.pkl'
     elif args.area_classify or args.cb_loss != None:
         train_dataset_path = 'corpus/train_ft_area.pkl'
-        test_dataset_path = 'corpus/test_ft_area.pkl'
+        test_dataset_path  = 'corpus/test_ft_area.pkl'
     else:
         train_dataset_path = 'corpus/train.pkl'
-        test_dataset_path = 'corpus/test.pkl'
+        test_dataset_path  = 'corpus/test.pkl'
 
-    df_train = pd.read_pickle(train_dataset_path)
-    df_test = pd.read_pickle(test_dataset_path)
-
+    df_train      = pd.read_pickle(train_dataset_path)
+    df_test       = pd.read_pickle(test_dataset_path)
     dataset_train = chainer.datasets.TupleDataset(
         *[df_train[c].values for c in df_train.columns])
-    dataset_test = chainer.datasets.TupleDataset(
+    dataset_test  = chainer.datasets.TupleDataset(
         *[df_test[c].values for c in df_test.columns])
 
     if args.area_classify:
         model = DialectAndAreaClassifier(
-            n_categ=48,
-            n_embed=100,
-            n_lstm=600,
-            n_area=8
+            n_categ = 48,
+            n_embed = 100,
+            n_lstm  = 600,
+            n_area  = 8
         )
         bc = batch_converter_area
     elif args.cb_loss != None:
         spc_list = get_samples_per_cls(df_train,'PFT')
-        model = CbLossClassifier(
-            spc_list=spc_list,
-            beta=args.cb_loss,
-            n_categ=48,
-            n_embed=100,
-            n_lstm=600,
-            n_area=8
+        model = get_model(
+            spc_list = spc_list,
+            beta     = args.cb_loss,
+            n_lstm   = 600
         )
         bc = batch_converter_area
     else:
-        model = L.Classifier(DialectClassifier(
-            n_vocab=16000,
-            n_categ=48,
-            n_embed=100 if args.fasttext else 300,
-            n_lstm=600,
-            fasttext=args.fasttext
-        ),label_key='category')
+        model = L.Classifier(
+            DialectClassifier(
+                n_vocab  = 16000,
+                n_categ  = 48,
+                n_embed  = 100 if args.fasttext else 300,
+                n_lstm   = 600,
+                fasttext = args.fasttext
+            ),
+            label_key='category')
         bc = batch_converter
     model.to_gpu()
-
-    iter_train = iterators.SerialIterator(dataset_train,BATCH_SIZE,shuffle=True)
-    iter_test = iterators.SerialIterator(dataset_test,BATCH_SIZE,shuffle=False,repeat=False)
-
-    optimizer = optimizers.SGD()
-    optimizer.setup(model)
-
-    updater = training.StandardUpdater(
-        iter_train,
-        optimizer,
-        device=0,
-        converter=bc
-    )
-
-    trainer = training.Trainer(updater,(args.epoch,'epoch'),out='result')
-    trainer.extend(extensions.Evaluator(iter_test, model,device=0,converter=bc))
-    snapshot_writer = training.extensions.snapshot_writers.ThreadQueueWriter()
-    trainer.extend(training.extensions.snapshot_object(
-        target=model, 
-        filename='{}/model_{}.npz'.format(args.result_directory,args.desc), 
-        writer=snapshot_writer),trigger=(10,'epoch'))
 
     if args.area_classify or args.cb_loss != None:
         print_list = ['epoch', 'main/loss', 'main/accuracy',
@@ -155,15 +229,17 @@ if __name__ == "__main__":
         plot_list = [('loss',['main/loss','validation/main/loss']),
             ('accuracy',['main/accuracy','validation/main/accuracy'])]
 
-    trainer.extend(extensions.LogReport())
-    trainer.extend(extensions.PrintReport(print_list))
-    trainer.extend(extensions.dump_graph('main/loss'))
-    for tag,plot in plot_list:
-        trainer.extend(extensions.PlotReport(
-            plot,
-            x_key='epoch',
-            file_name='{}/{}_{}.png'.format(args.result_directory,tag,args.desc)))
-    trainer.extend(extensions.ProgressBar())
+    trainer,reporter = get_trainer_and_reporter(
+        model           = model,
+        df_test         = df_test,
+        df_train        = df_train,
+        batch_size      = BATCH_SIZE,
+        batch_converter = bc,
+        args            = args,
+        device          = 0,
+        print_list      = print_list,
+        plot_list       = plot_list
+    )
     trainer.run()
 
     cm_categ,cm_area = get_confusion_matrix_DAC(df_test,model)

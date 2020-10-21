@@ -10,3 +10,4 @@ result*.txt
 fasttext_model/
 .nfs*
 *.png
+*.txt

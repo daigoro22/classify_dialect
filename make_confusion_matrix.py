@@ -1,8 +1,8 @@
 import chainer
 import argparse
 import pandas as pd
-import numpy as np
-import cupy as cp
+import cupy as np
+#import cupy as cp
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import ConfusionMatrixDisplay
 from dialect_and_area_classifier import DialectAndAreaClassifier
@@ -13,25 +13,28 @@ from cb_loss_classifier import CbLossClassifier
 import os
 
 def get_confusion_matrix_DAC(df_test,model,normalize='all'):
-    Y_categ = [p.tolist() for p in df_test['PFT'].values]
-    Y_area = [a.tolist() for a in df_test['AREA'].values]
-    X_dialect = [np.array(d,dtype=np.float32) for d in df_test['DIALECT'].values]
+    Y_categ    = [p.tolist() for p in df_test['PFT'].values]
+    Y_area     = [a.tolist() for a in df_test['AREA'].values]
+    X_dialect  = [np.array(d,dtype=np.float32) for d in df_test['DIALECT'].values]
     X_standard = [np.array(s,dtype=np.float32) for s in df_test['STANDARD'].values]
+    
     pred_categ, pred_area = model.predict(X_dialect,X_standard)
+    
     cm_categ = confusion_matrix(Y_categ,pred_categ.tolist(),normalize=normalize)
-    cm_area = confusion_matrix(Y_area,pred_area.tolist(),normalize=normalize)
+    cm_area  = confusion_matrix(Y_area,pred_area.tolist(),normalize=normalize)
     return cm_categ, cm_area
 
 def save_cmat_fig(cmat,ticklabels,filename):
     df = pd.DataFrame(cmat, columns=ticklabels,index=ticklabels)
+    
     fig = plt.figure(figsize=(8,6))
-    ax = fig.add_subplot(111)
+    ax  = fig.add_subplot(111)
     sns.heatmap(
         df,
-        ax=ax,
-        xticklabels=ticklabels,
-        yticklabels=ticklabels,
-        linewidth=0.1)
+        ax          = ax,
+        xticklabels = ticklabels,
+        yticklabels = ticklabels,
+        linewidth   = 0.1)
     fig.savefig(filename)
 
 if __name__ == "__main__":
