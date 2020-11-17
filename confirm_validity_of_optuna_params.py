@@ -25,9 +25,10 @@ if __name__ == "__main__":
     parser.add_argument('-pts',
         '--param_to_be_scanned',
         type=str,
-        choices=['','grad_clipping','learning_rate','beta','n_lstm'],
-        default='')
+        choices=['best','grad_clipping','learning_rate','beta','n_lstm'],
+        default='best')
     parser.add_argument('-s','--study',type=str,default='optuna/optuna.db')
+    parser.add_argument('-ag','--append_grad_clipping',type=float,default=-1.0)
     args = parser.parse_args()
 
     BATCH_SIZE = 60
@@ -70,11 +71,17 @@ if __name__ == "__main__":
         load_if_exists = True)
     best_params = study.best_params
 
+    if 'grad_clipping' not in best_params: # grad_clipping なしの場合
+        if args.append_grad_clipping > 0:
+            best_params['grad_clipping'] = args.append_grad_clipping
+        else:
+            best_params['grad_clipping'] = None
+
     DICT_PARAMS_TO_BE_SCANNED = {
         'grad_clipping'     : [1e-5,1e-4,1e-3,1e-2,1e-1,0],
-        'learning_rate'     : np.arange(0,1.0,0.1),
+        'learning_rate'     : np.arange(0,1.0,0.1,dtype=np.float32).tolist(),
         'beta'              : [0.5,0.6,0.7,0.8,0.9,0.99,0.999,0.9999],
-        'n_lstm'            : np.arange(100,600,100),
+        'n_lstm'            : np.arange(100,600,100,dtype=np.int32).tolist(),
     }
     dict_params_prototype = {
         'spc_list'        : spc_list,
@@ -92,21 +99,27 @@ if __name__ == "__main__":
         'grad_clipping'   : best_params['grad_clipping'],
     }
 
-    list_params = []
-    list_params.append(dict_params_prototype.copy())
-    if args.param_to_be_scanned is not '':
+    list_params      = []
+    list_params_name = []
+
+    if args.param_to_be_scanned != 'best':# is はオブジェクトが同一かどうかを調べるため, フラグがうまく立たない
         list_params_to_be_scanned = DICT_PARAMS_TO_BE_SCANNED[args.param_to_be_scanned]
         for param in list_params_to_be_scanned:
             dict_params = dict_params_prototype.copy()
             dict_params[args.param_to_be_scanned] = param
+
+            list_params_name.append(str(param))
             list_params.append(dict_params)
+    else:
+        list_params.append(dict_params_prototype.copy())
+        list_params_name.append('best')
 
     dict_log = {}
-    for dict_params in list_params:
+    for str_param,dict_params in zip(list_params_name,list_params):
         model,trainer,reporter = get_model_trainer_reporter(**dict_params)
         model.to_gpu()
         trainer.run()
-        dict_log[str(dict_params[args.param_to_be_scanned])] = reporter.log
+        dict_log[str_param] = reporter.log
         cm_categ,cm_area = get_confusion_matrix_DAC(df_test,model)
         save_cmat_fig(cm_categ,wd.categories(),CMAT_CATEG_PATH)
         save_cmat_fig(cm_area,wd_area.categories(),CMAT_AREA_PATH)

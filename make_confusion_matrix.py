@@ -36,6 +36,7 @@ def save_cmat_fig(cmat,ticklabels,filename):
         yticklabels = ticklabels,
         linewidth   = 0.1)
     fig.savefig(filename)
+    plt.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

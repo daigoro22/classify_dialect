@@ -41,8 +41,8 @@ def get_trainer_and_reporter(
     batch_converter,
     args,
     device,
-    print_list,
     plot_list,
+    print_list=[],
     learning_rate=1e-5,
     grad_clipping=0.5):
 
@@ -51,7 +51,8 @@ def get_trainer_and_reporter(
 
     optimizer = optimizers.SGD(lr=learning_rate)
     optimizer.setup(model)
-    optimizer.add_hook(optimizer_hooks.GradientClipping(threshold=grad_clipping))
+    if grad_clipping != None: # grad_clipping ありの場合
+        optimizer.add_hook(optimizer_hooks.GradientClipping(threshold=grad_clipping))
 
     updater = training.StandardUpdater(
         iter_train,
@@ -68,7 +69,6 @@ def get_trainer_and_reporter(
         filename = 'model_{}.npz'.format(args.desc), 
         writer   = training.extensions.snapshot_writers.ThreadQueueWriter())
     ext_reporter        = training.extensions.LogReport()
-    ext_printreport     = training.extensions.PrintReport(print_list)
     ext_plotreport_list = []
     for tag,plot in plot_list:
         ext_plotreport_list.append(
@@ -78,16 +78,17 @@ def get_trainer_and_reporter(
                 file_name = '{}/{}_{}.png'.format(args.result_directory,tag,args.desc))
         )
     ext_dump_graph      = training.extensions.dump_graph('main/loss')
-    ext_progress_bar    = training.extensions.ProgressBar()
 
     trainer.extend(ext_evaluator)
     trainer.extend(ext_snapshot_object,trigger=(10,'epoch'))
     trainer.extend(ext_reporter)
-    trainer.extend(ext_printreport)
     for pl in ext_plotreport_list:
         trainer.extend(pl)
     trainer.extend(ext_dump_graph)
-    trainer.extend(ext_progress_bar)
+
+    if print_list != []:
+        ext_printreport     = training.extensions.PrintReport(print_list)
+        trainer.extend(ext_printreport)
 
     iter_test.reset()
     iter_train.reset()
@@ -104,14 +105,24 @@ def get_model_trainer_reporter(
     batch_converter,
     args,
     device,
-    print_list,
     plot_list,
+    print_list=[],
     learning_rate=1e-5,
     grad_clipping=0.5):
 
     model = get_model(spc_list,n_lstm,beta)
     trainer,reporter = get_trainer_and_reporter(
-        model,df_test,df_train,batch_size,batch_converter,args,device,print_list,plot_list,learning_rate,grad_clipping
+        model           = model,
+        df_test         = df_test,
+        df_train        = df_train,
+        batch_size      = batch_size,
+        batch_converter = batch_converter,
+        args            = args,
+        device          = device,
+        print_list      = print_list,
+        plot_list       = plot_list,
+        learning_rate   = learning_rate,
+        grad_clipping   = grad_clipping
     )
     return model,trainer,reporter
 

@@ -43,11 +43,11 @@ def get_trainer_and_reporter(
     device=0):
 
     learning_rate = trial.suggest_loguniform('learning_rate', 1e-5, 1e-1)
-    grad_clipping = trial.suggest_uniform('grad_clipping',0,1.0)
+    # grad_clipping = trial.suggest_uniform('grad_clipping',0,1.0)
 
     optimizer = optimizers.SGD(lr=learning_rate)
     optimizer.setup(model)
-    optimizer.add_hook(optimizer_hooks.GradientClipping(threshold=grad_clipping))
+    # optimizer.add_hook(optimizer_hooks.GradientClipping(threshold=grad_clipping))
 
     updater = training.StandardUpdater(
         iter_train,
