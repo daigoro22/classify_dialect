@@ -170,6 +170,9 @@ if __name__ == "__main__":
     parser.add_argument('-ft','--fasttext',action='store_true')
     parser.add_argument('-ac','--area_classify',action='store_true')
     parser.add_argument('-cb','--cb_loss',type=float,default=None)
+    parser.add_argument('-lstm','--n_lstm',type=int,default=300)
+    parser.add_argument('-lr','--learning_rate',type=float,default=1e-5)
+    parser.add_argument('-gc','--grad_clipping',type=float,default=0.01)
     parser.add_argument('-d','--desc',type=str,default='')
     parser.add_argument('-rd','--result_directory',type=str,default='')
     args = parser.parse_args()
@@ -209,7 +212,7 @@ if __name__ == "__main__":
         model = get_model(
             spc_list = spc_list,
             beta     = args.cb_loss,
-            n_lstm   = 600
+            n_lstm   = args.n_lstm
         )
         bc = batch_converter_area
     else:
@@ -249,7 +252,9 @@ if __name__ == "__main__":
         args            = args,
         device          = 0,
         print_list      = print_list,
-        plot_list       = plot_list
+        plot_list       = plot_list,
+        learning_rate=args.learning_rate,
+        grad_clipping=args.grad_clipping
     )
     trainer.run()
 
