@@ -19,18 +19,14 @@ import pandas as pd
 from dialect_and_area_classifier import batch_converter_area
 from class_balanced_loss import get_samples_per_cls
 
-def get_model(trial:Trial,spc_list:list):
+def get_model(trial:Trial,model_params:dict):
     n_lstm = trial.suggest_categorical('lstm',[100,300,600])
     beta = trial.suggest_uniform('beta',0,1.0)
     
-    model = CbLossClassifier(
-        spc_list = spc_list,
-        n_lstm = n_lstm,
-        beta = beta,
-        n_embed = 100,
-        n_categ = 48,
-        n_area = 8
-    )
+    model_params['n_lstm'] = n_lstm
+    model_params['beta'] = beta
+    
+    model = CbLossClassifier(**model_params)
     return model
 
 def get_trainer_and_reporter(
@@ -40,14 +36,19 @@ def get_trainer_and_reporter(
     iter_train:iterators.SerialIterator,
     batch_converter,
     args,
-    device=0):
+    device=0,
+    best_params={}):
 
-    learning_rate = trial.suggest_loguniform('learning_rate', 1e-5, 1e-1)
-    # grad_clipping = trial.suggest_uniform('grad_clipping',0,1.0)
+    if best_params != {}:# 過去の best_param 使う場合
+        learning_rate = best_params['learning_rate']
+    else:
+        learning_rate = trial.suggest_loguniform('learning_rate', 1e-5, 1e-1)
+
+    grad_clipping = trial.suggest_uniform('grad_clipping',0,1.0)
 
     optimizer = optimizers.SGD(lr=learning_rate)
     optimizer.setup(model)
-    # optimizer.add_hook(optimizer_hooks.GradientClipping(threshold=grad_clipping))
+    optimizer.add_hook(optimizer_hooks.GradientClipping(threshold=grad_clipping))
 
     updater = training.StandardUpdater(
         iter_train,
@@ -87,6 +88,7 @@ if __name__ == "__main__":
     parser.add_argument('-nt','--n_trials',type=int,default=100)
     parser.add_argument('-pk','--pruning_key',type=str,default='main/loss')
     parser.add_argument('-pte','--pruning_trigger_epoch',type=int,default=3)
+    parser.add_argument('-s','--study',type=str,default='')
     args_cl = parser.parse_args()
 
     BATCH_SIZE = 60
@@ -104,9 +106,38 @@ if __name__ == "__main__":
     iter_test = get_iter(df_test,BATCH_SIZE,shuffle=False,repeat=False)
 
     spc_list = get_samples_per_cls(df_train,'PFT')
+    if args_cl.study != '':# 過去の best_param 使う場合
+        STORAGE     = f'sqlite:///{args_cl.study}'
+        study       = create_study(
+                        study_name     = 'optuna',
+                        storage        = STORAGE,
+                        load_if_exists = True)
+        best_params = study.best_params
+        model_params = {
+            'spc_list':spc_list,
+            'n_lstm':best_params['lstm'],
+            'beta':best_params['beta'],
+            'n_embed':100,
+            'n_categ':48,
+            'n_area':8
+        }
+    else:
+        best_params = {}
+        model_params = {
+            'spc_list':spc_list,
+            'n_lstm':100,
+            'beta':0.9,
+            'n_embed':100,
+            'n_categ':48,
+            'n_area':8
+        }
 
     def objective(trial:Trial):
-        model = get_model(trial,spc_list)
+        if args_cl.study != '':# 過去の best_param 使う場合
+            model = CbLossClassifier(**model_params)
+        else:
+            model = get_model(trial,model_params)
+
         trainer,reporter = get_trainer_and_reporter(
             trial=trial,
             model=model,
@@ -114,7 +145,8 @@ if __name__ == "__main__":
             iter_test=iter_test,
             batch_converter=batch_converter_area,
             args=args_cl,
-            device=0
+            device=0,
+            best_params=best_params
         )
         trainer.run()
         (epoch,best_loss) = get_bestresult(reporter.log,args_cl.pruning_key)
