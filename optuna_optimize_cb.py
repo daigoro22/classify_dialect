@@ -56,8 +56,16 @@ def get_trainer_and_reporter(
         device=device,
         converter=batch_converter
     )
+    
+    early_trigger = training.triggers.EarlyStoppingTrigger(
+        check_trigger=(1, "epoch"),
+        monitor="validation/main/accuracy",
+        patients=3,
+        mode="max",
+        max_trigger=(args.epoch, "epoch")
+    )
 
-    trainer = training.Trainer(updater,(args.epoch,'epoch'),out='optuna')
+    trainer = training.Trainer(updater,early_trigger,out='optuna')
     trainer.extend(extensions.Evaluator(iter_test, model,device=device,converter=batch_converter))
     snapshot_writer = training.extensions.snapshot_writers.ThreadQueueWriter()
     trainer.extend(training.extensions.snapshot_object(
