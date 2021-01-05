@@ -126,7 +126,7 @@ if __name__ == "__main__":
         assert(len(list_sep_std) == len(list_sep_dia))
 
         parse = lambda x: tagger.parse(x).strip().replace('。','')
-        list_new_line = ['\t'.join((parse(s),parse(d),pref)) + '\n' for s,d in zip(list_sep_std,list_sep_dia)]
+        list_new_line = ['\t'.join((parse(d),parse(s),pref)) + '\n' for s,d in zip(list_sep_std,list_sep_dia)]
         # 行全てをリストに追加
         list_new_lines.extend(list_new_line)
     
