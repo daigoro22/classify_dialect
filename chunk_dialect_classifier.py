@@ -3,6 +3,8 @@ import chainer.links as L
 import chainer.functions as F
 import pandas as pd
 import numpy as np
+import itertools
+from sklearn.preprocessing import LabelEncoder
 
 class ChunkDialectClassifier(chainer.Chain):
     def __init__(self,n_vocab,n_categ,n_lstm):
@@ -19,21 +21,38 @@ class ChunkDialectClassifier(chainer.Chain):
         return self.categ(h3)
 
 def get_one_hot(df:pd.DataFrame,label:str):
-    """one-hotベクトルを pd.DataFrame の１カラムから取得する.
+    """文字レベルの one-hotベクトルを pd.DataFrame の１カラムから取得する.
     Args:
         df (pd.DataFrame): one-hot ベクトルを取得したいデータ列が格納された DataFrame.
         label (str): one-hot ベクトルを取得したいデータ列のラベル.
     Returns:
-        df_oh (pd.DataFrame): 変換した one-hot ベクトルが格納されている DataFrame.
+        df_one_hot (pd.DataFrame): 変換した one-hot ベクトルが格納されている DataFrame.
     
     >>> df=pd.DataFrame({'standard':['アイ','ウエ'],'dialect':['ウエ','オ'],'pref':['gunma','tokyo']})
     >>> get_one_hot(df,'standard')
-        standard
-    0  [[1, 0, 0, 0],[0, 1, 0, 0]]
-    1  [[0, 0, 1, 0],[0, 0, 0, 1]]
+                           standard
+    0  [[1, 0, 0, 0], [0, 1, 0, 0]]
+    1  [[0, 0, 1, 0], [0, 0, 0, 1]]
     """
-    se_data = df[label]
-    print(se_data)
+    
+    # エンコーダを作成するために, データ列を構成する文字を flat なリストにする
+    se_listed       = df[label].map(list)
+    list_data_flat  = list(itertools.chain.from_iterable(se_listed.tolist()))
+    
+    # 文字->整数に変換するエンコーダ
+    le = LabelEncoder()
+    le.fit(list_data_flat)
+    len_le = len(le.classes_)
+    # 文字->整数に変換
+    se_listed_encoded = se_listed.map(le.transform)
+
+    # 整数->one-hot　ベクトルへの変換
+    to_one_hot = lambda x:np.identity(len_le,dtype=np.int32)[x]
+    se_listed_one_hot = se_listed_encoded.map(to_one_hot)
+
+    # 元のラベルを付けた DataFrame へ変換
+    df_one_hot = pd.DataFrame(se_listed_one_hot,columns=[label])
+    return df_one_hot
 
 if __name__ == "__main__":
     df=pd.DataFrame({'standard':['アイ','ウエ'],'dialect':['ウエ','オ'],'pref':['gunma','tokyo']})
