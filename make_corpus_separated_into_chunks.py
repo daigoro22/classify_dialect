@@ -1,6 +1,7 @@
 import glob
-import re 
+import regex as re
 import MeCab
+import jaconv
 
 def assert_lines(list_std,list_dia):
     """元コーパスの全行の Assertion をまとめて行う関数.
@@ -31,7 +32,7 @@ def assert_lines(list_std,list_dia):
             continue
         assert(dict_dlg_d[k] == v)
 
-def shape_lines(lines):
+def shape_lines(lines:str,tagger:MeCab.Tagger):
     """コーパスの行を整理する関数.
     以下の表現を削除する.
     * { }: 笑，咳，咳払い，間，などの非言語音。
@@ -43,11 +44,11 @@ def shape_lines(lines):
     * ――　中　略　――: 中略を表す.
     以下の表現は置換する.
     * [ ]: 方言音声には出てこないが，共通語訳の際に補った部分. カッコの中身で置換.
-    * (): あいづち. ひとりの人が連続して話している時にさえぎったり，口をはさんだりした個所. カッコの中身で置換.
+    * (): あいづち. ひとりの人が連続して話している時にさえぎったり，口をはさんだりした個所. カッコの中身ごと削除.
     * Xn: nは数字. 会話に参加していない他者を示す. 『X』で置換.
     * ｎ: 高知県にのみ含まれる. 非言語音. 『ン』で置換.
-    * \*\*\*: 聞き取れない部分. 未知語『<unk>』で置換.
-    * ///: 対応する共通語訳が不明な部分. 未知語『<unk>』で置換.
+    * \*\*\*: 聞き取れない部分. 未知語『\*』で置換.
+    * ///: 対応する共通語訳が不明な部分. 未知語『\*』で置換.
     Args:
         line (str): 元コーパスの全行.
     Returns:
@@ -56,24 +57,37 @@ def shape_lines(lines):
 
     # 会話番号の正規表現
     PATT_PRE_DLG = '。?\n?[0-9]+(?:[Ａ-Ｚ]|[A-Z])(?:：|:)'
-    # 削除する部分の正規表現
-    PATT_STRIP   = r'(?:｛.*?｝|｜.*?｜|［(?:＝|=).*?］|×+|x+|〔.*?〕|――　中　略　――|（(?:[Ａ-Ｚ]|[A-Z]).*?）|［|］|＝［.*?］)'
+    # 非言語音, 言い間違い, 説明, 注意書き, 注記, 中略の正規表現
+    PATT_DELETE  = r'｛.*?｝|｜.*?｜|［(?:＝|=).*?］|×+|x+|〔.*?〕|―+　中　略　―+|（.*?）|＝［.*?］'
+    # strip する部分の正規表現
+    PATT_STRIP   = r'［|］|・|＝|,|，|『|』|「|」|、|！|？|。' 
     # 会話に参加していない人の名前の正規表現
     PATT_NAME    = r'((?:Ｘ|X)(?:[0-9]|[０-９])+)|[Ａ-Ｚ]'
     # 聞き取れなかった部分の正規表現
     PATT_UNREC   = r'＊+|\*+|／+|/+'
+    # 許容する文字（カタカナ, ー, ゜, 全角空白,数字）以外の文字の正規表現
+    PATT_NOT_ALLOW    = r'[^ァ-ヴー゜　\n0-9]+'
 
     # 非言語音『n』を置換
     lines_shaped = lines.replace('ｎ','ン')
+    # 鼻濁音°を゜に置換
+    lines_shaped = lines_shaped.replace('°','゜')
     # 非言語音, 言い間違い, 説明, 注意書き, 注記, 中略を削除
+    lines_shaped = re.sub(PATT_DELETE,'',lines_shaped)
+    # 記号などを削除
     lines_shaped = re.sub(PATT_STRIP,'',lines_shaped)
     # 会話に参加していない人物の名前をXに置換
     lines_shaped = re.sub(PATT_NAME,'X',lines_shaped)
-    # 聞き取れなかった部分は 未知語に置換
-    lines_shaped = re.sub(PATT_UNREC,'<unk>',lines_shaped)
-    # 会話番号を句点と改行に置換
-    lines_shaped = re.sub(PATT_PRE_DLG,'。\n',lines_shaped)
-
+    # 聞き取れなかった部分は未知語に置き換え
+    lines_shaped = re.sub(PATT_UNREC,'*',lines_shaped)
+    # 会話番号を全角空白に置換
+    lines_shaped = re.sub(PATT_PRE_DLG,'　',lines_shaped)
+    # Mecab でパース
+    lines_shaped = tagger.parse(lines_shaped)
+    # 許容する文字以外を未知語に置換
+    lines_shaped = re.sub(PATT_NOT_ALLOW,'*',lines_shaped)
+    # 『エックス』をXに変換
+    lines_shaped = lines_shaped.replace('エックス','X')
     return lines_shaped.split('\n')
 
 if __name__ == "__main__":
@@ -103,14 +117,14 @@ if __name__ == "__main__":
         assert_lines(list_std,list_dia)
 
         # 全ての行を整形する
-        list_shaped_std = shape_lines('\n'.join(list_std))
-        list_shaped_dia = shape_lines('\n'.join(list_dia))
+        list_shaped_std = shape_lines('\n'.join(list_std),tagger)
+        list_shaped_dia = shape_lines('\n'.join(list_dia),tagger)
         
         list_new_line = []
 
-        sep = lambda x:x.split('　')
-        PATT_DELETE_CHUNK = '。'
-        is_necessary = lambda x:(x!='' and not re.fullmatch(PATT_DELETE_CHUNK,x))
+        sep = lambda x:re.split(' |　',x)
+        PATT_DELETE_CHUNK = '（.*|.*）|\*'
+        is_necessary = lambda x:(x!='' and x!='。' and not re.fullmatch(PATT_DELETE_CHUNK,x))
         
         list_sep_std = []
         list_sep_dia = []
@@ -125,8 +139,8 @@ if __name__ == "__main__":
 
         assert(len(list_sep_std) == len(list_sep_dia))
 
-        parse = lambda x: tagger.parse(x).strip().replace('。','')
-        list_new_line = ['\t'.join((parse(d),parse(s),pref)) + '\n' for s,d in zip(list_sep_std,list_sep_dia)]
+        parse = lambda x: jaconv.hira2kata(tagger.parse(x)).strip().replace('。','')
+        list_new_line = ['\t'.join((d,s,pref)) + '\n' for s,d in zip(list_sep_std,list_sep_dia)]
         # 行全てをリストに追加
         list_new_lines.extend(list_new_line)
     
