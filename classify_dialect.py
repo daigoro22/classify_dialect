@@ -21,6 +21,7 @@ from class_balanced_loss import get_samples_per_cls
 from make_confusion_matrix import(
     get_confusion_matrix_DAC,
     save_cmat_fig)
+from chunk_dialect_classifier import ChunkDialectClassifier
 
 def get_model(spc_list:list,n_lstm:int,beta:float):
     model = CbLossClassifier(
@@ -34,7 +35,7 @@ def get_model(spc_list:list,n_lstm:int,beta:float):
     return model
 
 def get_trainer_and_reporter(
-    model:CbLossClassifier,
+    model,
     df_test:pd.DataFrame,
     df_train:pd.DataFrame,
     batch_size,
@@ -170,6 +171,7 @@ if __name__ == "__main__":
     parser.add_argument('-ft','--fasttext',action='store_true')
     parser.add_argument('-ac','--area_classify',action='store_true')
     parser.add_argument('-cb','--cb_loss',type=float,default=None)
+    parser.add_argument('-ch','--chunk_character',action='store_true')
     parser.add_argument('-lstm','--n_lstm',type=int,default=300)
     parser.add_argument('-lr','--learning_rate',type=float,default=1e-5)
     parser.add_argument('-gc','--grad_clipping',type=float,default=0.01)
@@ -188,6 +190,9 @@ if __name__ == "__main__":
     elif args.area_classify or args.cb_loss != None:
         train_dataset_path = 'corpus/train_ft_area.pkl'
         test_dataset_path  = 'corpus/test_ft_area.pkl'
+    elif args.chunk_character:
+        train_dataset_path = 'corpus/train_character.pkl'
+        test_dataset_path  = 'corpus/test_character.pkl'
     else:
         train_dataset_path = 'corpus/train.pkl'
         test_dataset_path  = 'corpus/test.pkl'
@@ -215,6 +220,15 @@ if __name__ == "__main__":
             n_lstm   = args.n_lstm
         )
         bc = batch_converter_area
+    elif args.chunk_character:
+        model = L.Classifier(
+            ChunkDialectClassifier(
+                n_vocab = 98,
+                n_categ = 48,
+                n_lstm  = args.n_lstm
+        ),
+        label_key='category')
+        bc = batch_converter
     else:
         model = L.Classifier(
             DialectClassifier(

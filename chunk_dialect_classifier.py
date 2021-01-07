@@ -8,7 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 from typing import List
 
 class ChunkDialectClassifier(chainer.Chain):
-    def __init__(self,n_vocab,n_categ,n_lstm):
+    def __init__(self,n_vocab=98,n_categ=48,n_lstm=600):
         super(ChunkDialectClassifier,self).__init__()
         with self.init_scope():
             self.lstm_s = L.NStepLSTM(1,n_vocab,n_lstm,dropout=0.2)
@@ -18,7 +18,7 @@ class ChunkDialectClassifier(chainer.Chain):
     def __call__(self,dialect,standard):
         h1_s,_,_  = self.lstm_s(None,None,standard)
         h1_d,_,_  = self.lstm_d(None,None,dialect)
-        h3        = F.relu(F.concat(h1_s[0],h1_d[0]))
+        h3        = F.relu(F.concat([h1_s[0],h1_d[0]]))
         return self.categ(h3)
 
 def get_one_hot(df:pd.DataFrame,label:str,classes:List[str]=None):
@@ -31,9 +31,9 @@ def get_one_hot(df:pd.DataFrame,label:str,classes:List[str]=None):
     
     >>> df=pd.DataFrame({'standard':['アイ','ウエ'],'dialect':['ウエ','オ'],'pref':['gunma','tokyo']})
     >>> get_one_hot(df,'standard')
-                           standard
-    0  [[1, 0, 0, 0], [0, 1, 0, 0]]
-    1  [[0, 0, 1, 0], [0, 0, 0, 1]]
+                                           standard
+    0  [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]]
+    1  [[0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
     """
     
     df = df.dropna(how='any',axis=0)
@@ -63,7 +63,7 @@ def get_one_hot(df:pd.DataFrame,label:str,classes:List[str]=None):
     se_listed_encoded = se_listed.map(transform)
 
     # 整数->one-hot　ベクトルへの変換
-    to_one_hot = lambda x:np.identity(len_le,dtype=np.int32)[x]
+    to_one_hot = lambda x:np.identity(len_le,dtype=np.float32)[x]
     se_listed_one_hot = se_listed_encoded.map(to_one_hot)
 
     # 元のラベルを付けた DataFrame へ変換
