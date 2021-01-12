@@ -13,12 +13,12 @@ class ChunkDialectClassifier(chainer.Chain):
         with self.init_scope():
             self.lstm_s = L.NStepLSTM(1,n_vocab,n_lstm,dropout=0.2)
             self.lstm_d = L.NStepLSTM(1,n_vocab,n_lstm,dropout=0.2)
-            self.categ  = L.Linear(None,n_categ)
+            self.categ  = L.Linear(2*n_lstm,n_categ)
 
     def __call__(self,dialect,standard):
-        h1_s,_,_  = self.lstm_s(None,None,standard)
-        h1_d,_,_  = self.lstm_d(None,None,dialect)
-        h3        = F.relu(F.concat([h1_s[0],h1_d[0]]))
+        h1_s,_,_ = self.lstm_s(None,None,standard)
+        h1_d,_,_ = self.lstm_d(None,None,dialect)
+        h3       = F.concat([F.relu(h1_s[0]),F.relu(h1_d[0])])
         return self.categ(h3)
 
 def get_one_hot(df:pd.DataFrame,label:str,classes:List[str]=None):

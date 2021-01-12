@@ -173,13 +173,14 @@ if __name__ == "__main__":
     parser.add_argument('-cb','--cb_loss',type=float,default=None)
     parser.add_argument('-ch','--chunk_character',action='store_true')
     parser.add_argument('-lstm','--n_lstm',type=int,default=300)
-    parser.add_argument('-lr','--learning_rate',type=float,default=1e-5)
-    parser.add_argument('-gc','--grad_clipping',type=float,default=0.01)
+    parser.add_argument('-lr','--learning_rate',type=float,default=1e-2)
+    parser.add_argument('-gc','--grad_clipping',type=float,default=None)
     parser.add_argument('-d','--desc',type=str,default='')
     parser.add_argument('-rd','--result_directory',type=str,default='')
+    parser.add_argument('-b','--batch_size',type=int,default=60)
     args = parser.parse_args()
 
-    BATCH_SIZE = 60
+    BATCH_SIZE = args.batch_size
 
     wd      = WordAndCategDict('spm/dialect_standard.model','corpus/all_pft.txt')
     wd_area = WordAndCategDict(categ_path='corpus/all_area.txt')

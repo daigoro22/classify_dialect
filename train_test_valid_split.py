@@ -58,10 +58,10 @@ if __name__ == "__main__":
 
         if args.character:
             classes = [chr(i) for i in range(12449, 12532+1)]
-            classes += list(range(10))
+            classes += [str(n) for n in list(range(10))]
             classes += ['ー','゜','*','X']
-            df_chara = get_one_hot(_df,'STANDARD',classes)
-            df_chara = pd.concat([df_chara,get_one_hot(_df,'DIALECT',classes)],axis=1)
+            df_chara = get_one_hot(_df,'DIALECT',classes)
+            df_chara = pd.concat([df_chara,get_one_hot(_df,'STANDARD',classes)],axis=1)
             df_chara = pd.concat([df_chara,_df['PFT']],axis=1)
             df_chara = apply_func_to_columns(df_chara,wcdict.ctoi,apply_ctoi_columns)
             df_chara = apply_func_to_columns(df_chara,wcdict_area.ctoi,apply_atoi_columns)
