@@ -173,6 +173,8 @@ if __name__ == "__main__":
     parser.add_argument('-cb','--cb_loss',type=float,default=None)
     parser.add_argument('-ch','--chunk_character',action='store_true')
     parser.add_argument('-lstm','--n_lstm',type=int,default=300)
+    parser.add_argument('-nc','--n_categ',type=int,default=48)
+    parser.add_argument('-do','--dropout',type=float,default=0.2)
     parser.add_argument('-lr','--learning_rate',type=float,default=1e-2)
     parser.add_argument('-gc','--grad_clipping',type=float,default=None)
     parser.add_argument('-d','--desc',type=str,default='')
@@ -192,8 +194,8 @@ if __name__ == "__main__":
         train_dataset_path = 'corpus/train_ft_area.pkl'
         test_dataset_path  = 'corpus/test_ft_area.pkl'
     elif args.chunk_character:
-        train_dataset_path = 'corpus/train_character.pkl'
-        test_dataset_path  = 'corpus/test_character.pkl'
+        train_dataset_path = 'corpus/train_character.pkl' if args.n_categ==48 else 'corpus/train_character_extracted.pkl'
+        test_dataset_path  = 'corpus/test_character.pkl'  if args.n_categ==48 else 'corpus/test_character_extracted.pkl'
     else:
         train_dataset_path = 'corpus/train.pkl'
         test_dataset_path  = 'corpus/test.pkl'
@@ -207,7 +209,7 @@ if __name__ == "__main__":
 
     if args.area_classify:
         model = DialectAndAreaClassifier(
-            n_categ = 48,
+            n_categ = args.n_categ,
             n_embed = 100,
             n_lstm  = 600,
             n_area  = 8
@@ -225,8 +227,9 @@ if __name__ == "__main__":
         model = L.Classifier(
             ChunkDialectClassifier(
                 n_vocab = 98,
-                n_categ = 48,
-                n_lstm  = args.n_lstm
+                n_categ = args.n_categ,
+                n_lstm  = args.n_lstm,
+                dropout = args.dropout
         ),
         label_key='category')
         bc = batch_converter
@@ -234,7 +237,7 @@ if __name__ == "__main__":
         model = L.Classifier(
             DialectClassifier(
                 n_vocab  = 16000,
-                n_categ  = 48,
+                n_categ  = args.n_categ,
                 n_embed  = 100 if args.fasttext else 300,
                 n_lstm   = 600,
                 fasttext = args.fasttext
@@ -268,11 +271,12 @@ if __name__ == "__main__":
         device          = 0,
         print_list      = print_list,
         plot_list       = plot_list,
-        learning_rate=args.learning_rate,
-        grad_clipping=args.grad_clipping
+        learning_rate   = args.learning_rate,
+        grad_clipping   = args.grad_clipping
     )
     trainer.run()
 
+    #TODO: confusion matrix が出力できるようにする
     cm_categ,cm_area = get_confusion_matrix_DAC(df_test,model)
     save_cmat_fig(cm_categ,wd.categories(),'result/{}/cmat_categ_{}'.format(args.result_directory,args.desc))
     save_cmat_fig(cm_area,wd_area.categories(),'result/{}/cmat_area_{}'.format(args.result_directory,args.desc))

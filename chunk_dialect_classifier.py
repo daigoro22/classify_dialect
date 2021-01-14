@@ -4,15 +4,18 @@ import chainer.functions as F
 import pandas as pd
 import numpy as np
 import itertools
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import(
+    LabelEncoder,
+    OneHotEncoder
+)
 from typing import List
 
 class ChunkDialectClassifier(chainer.Chain):
-    def __init__(self,n_vocab=98,n_categ=48,n_lstm=600):
+    def __init__(self,n_vocab=98,n_categ=48,n_lstm=600,dropout=0.2):
         super(ChunkDialectClassifier,self).__init__()
         with self.init_scope():
-            self.lstm_s = L.NStepLSTM(1,n_vocab,n_lstm,dropout=0.2)
-            self.lstm_d = L.NStepLSTM(1,n_vocab,n_lstm,dropout=0.2)
+            self.lstm_s = L.NStepLSTM(1,n_vocab,n_lstm,dropout=dropout)
+            self.lstm_d = L.NStepLSTM(1,n_vocab,n_lstm,dropout=dropout)
             self.categ  = L.Linear(2*n_lstm,n_categ)
 
     def __call__(self,dialect,standard):
@@ -21,55 +24,59 @@ class ChunkDialectClassifier(chainer.Chain):
         h3       = F.concat([F.relu(h1_s[0]),F.relu(h1_d[0])])
         return self.categ(h3)
 
-def get_one_hot(df:pd.DataFrame,label:str,classes:List[str]=None):
-    """文字レベルの one-hotベクトルを pd.DataFrame の１カラムから取得する.
-    Args:
-        df (pd.DataFrame): one-hot ベクトルを取得したいデータ列が格納された DataFrame.
-        label (str): one-hot ベクトルを取得したいデータ列のラベル.
-    Returns:
-        df_one_hot (pd.DataFrame): 変換した one-hot ベクトルが格納されている DataFrame.
-    
-    >>> df=pd.DataFrame({'standard':['アイ','ウエ'],'dialect':['ウエ','オ'],'pref':['gunma','tokyo']})
-    >>> get_one_hot(df,'standard')
-                                           standard
-    0  [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]]
-    1  [[0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+class CharacterOneHotEncoder(OneHotEncoder):
     """
+    文字単位の one-hot ベクトルのエンコーダ.
+    sklearn.preprocessing.OneHotEncoder を継承している.
+    """
+    def __init__(self,classes,**args):
+        super(CharacterOneHotEncoder,self).__init__(**args)
+        # n行1列の array に変換
+        array_classes = np.array(classes).reshape(-1,1)
+        self.fit(array_classes)
+        self.len_enc  = len(self.categories_[0])
     
-    df = df.dropna(how='any',axis=0)
+    def get_one_hot(self,df:pd.DataFrame,label:str):
+        """文字レベルの one-hotベクトルを pd.DataFrame の１カラムから取得する.
+        Args:
+            df (pd.DataFrame): one-hot ベクトルを取得したいデータ列が格納された DataFrame.
+            label (str): one-hot ベクトルを取得したいデータ列のラベル.
+        Returns:
+            df_one_hot (pd.DataFrame): 変換した one-hot ベクトルが格納されている DataFrame.
+        
+        >>> df=pd.DataFrame({'standard':['アイ','ウエ'],'dialect':['ウエ','オ'],'pref':['gunma','tokyo']})
+        >>> classes = ['ア','イ','ウ','エ']
+        >>> encoder = CharacterOneHotEncoder(classes=classes,categories='auto',sparse=False,dtype=np.float32)
+        >>> encoder.get_one_hot(df,'standard')
+                                               standard
+        0  [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]]
+        1  [[0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+        """
+        
+        df = df.dropna(how='any',axis=0)
 
-    # データ列を構成する文字を flat なリストにする
-    se_listed       = df[label].map(list)
-    
-    # 文字->整数に変換するエンコーダ
-    le = LabelEncoder()
+        # データ列を構成する文字を flat なリストにする
+        se_listed = df[label].map(list)
+        
+        # n行1列の array に変換
+        se_listed = se_listed.map(lambda x: np.array(x).reshape(-1,1))
+        
+        # 文字->整数に変換
+        # transform で ValueError 出たら * のベクトル返す関数
+        def transform(line):
+            try:
+                return self.transform(line)
+            except ValueError:
+                return self.transform([['*']])
+        se_listed_encoded = se_listed.map(transform)
 
-    # classes が指定されていない場合, 構成する文字からエンコーダ作成
-    if classes == None:
-        list_data_flat  = list(itertools.chain.from_iterable(se_listed.tolist()))
-        le.fit(list_data_flat)
-    # classes が指定されている場合, classes からエンコーダ作成
-    else:
-        le.fit(classes)
-    
-    len_le = len(le.classes_) 
-    # 文字->整数に変換
-    # transform で ValueError 出たら * のベクトル返す関数
-    def transform(line):
-        try:
-            return le.transform(line)
-        except ValueError:
-            return le.transform(['*'])
-    se_listed_encoded = se_listed.map(transform)
-
-    # 整数->one-hot　ベクトルへの変換
-    to_one_hot = lambda x:np.identity(len_le,dtype=np.float32)[x]
-    se_listed_one_hot = se_listed_encoded.map(to_one_hot)
-
-    # 元のラベルを付けた DataFrame へ変換
-    df_one_hot = pd.DataFrame(se_listed_one_hot,columns=[label])
-    return df_one_hot
+        # 元のラベルを付けた DataFrame へ変換
+        df_one_hot = pd.DataFrame(se_listed_encoded,columns=[label])
+        return df_one_hot
 
 if __name__ == "__main__":
     df=pd.DataFrame({'standard':['アイ','ウエ'],'dialect':['ウエ','オ'],'pref':['gunma','tokyo']})
-    get_one_hot(df,'standard')
+    classes = ['ア','イ','ウ','エ']
+
+    encoder = CharacterOneHotEncoder(classes=classes,categories='auto',sparse=False,dtype=np.float32)
+    print(encoder.get_one_hot(df,'standard'))
