@@ -173,6 +173,7 @@ if __name__ == "__main__":
     parser.add_argument('-cb','--cb_loss',type=float,default=None)
     parser.add_argument('-ch','--chunk_character',action='store_true')
     parser.add_argument('-lstm','--n_lstm',type=int,default=300)
+    parser.add_argument('-embed','--n_embed',type=int,default=300)
     parser.add_argument('-nc','--n_categ',type=int,default=48)
     parser.add_argument('-do','--dropout',type=float,default=0.2)
     parser.add_argument('-lr','--learning_rate',type=float,default=1e-2)
@@ -227,6 +228,7 @@ if __name__ == "__main__":
         model = L.Classifier(
             ChunkDialectClassifier(
                 n_vocab = 98,
+                n_embed = args.n_embed,
                 n_categ = args.n_categ,
                 n_lstm  = args.n_lstm,
                 dropout = args.dropout

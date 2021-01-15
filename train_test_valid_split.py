@@ -4,7 +4,7 @@ import numpy as np
 from word_and_categ_dict import WordAndCategDict
 import argparse
 import fasttext
-from chunk_dialect_classifier import CharacterOneHotEncoder
+from chunk_dialect_classifier import CharacterLabelEncoder
 
 def apply_func_to_columns(data_frame,func,columns):
     for c in columns:
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         classes += [str(n) for n in list(range(10))]
         # 伸ばし棒, 鼻濁音, 未知語, 人物名
         classes += ['ー','゜','*','X']
-        encoder  = CharacterOneHotEncoder(classes=classes,categories='auto',sparse=False,dtype=np.float32)
+        encoder  = CharacterLabelEncoder(classes=classes)
     else:
         index              = ['DIALECT','STANDARD','PFT']
         apply_atoi_columns = []
@@ -67,14 +67,13 @@ if __name__ == "__main__":
 
         if args.character:
             # 文字の one-hot ベクトルを取得して 県の列 と concat
-            df_chara = encoder.get_one_hot(_df,'DIALECT')
-            df_chara = pd.concat([df_chara,encoder.get_one_hot(_df,'STANDARD')],axis=1)
+            df_chara = encoder.get_encoded(_df,'DIALECT')
+            df_chara = pd.concat([df_chara,encoder.get_encoded(_df,'STANDARD')],axis=1)
             df_chara = pd.concat([df_chara,_df['PFT']],axis=1)
 
             # 抽出する県が指定されている場合, 抽出
             if args.character_pfts != []:
                 df_chara = df_chara[df_chara['PFT'].isin(args.character_pfts)]
-                assert(df_chara['PFT'].isin(args.character_pfts).all())
             
             # 県名, 地域名->数値に変換
             df_chara = apply_func_to_columns(df_chara,wcdict.ctoi,apply_ctoi_columns)
