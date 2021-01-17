@@ -1,6 +1,7 @@
 import pandas as pd
 import argparse
 import matplotlib.pyplot as plt
+from icecream import ic
 
 if __name__ == "__main__":
     """
@@ -19,11 +20,18 @@ if __name__ == "__main__":
     df = pd.read_table(args.corpus)
     df.columns = args.columns
 
+    # 事例数出力
+    ic(len(df))
+
     fig = plt.figure()
 
     # count_key で指定したカラムの要素ごとのカウントをbarプロットする
-    df[args.count_key].value_counts().plot(kind='bar')
+    se_value_counts = df[args.count_key].value_counts()
+    se_value_counts.plot(kind='bar')
     plt.savefig(f'{args.result_directory}value_counts_{args.description}.png')
+
+    # 最小値と最大値出力
+    ic(se_value_counts.max,se_value_counts.min(),se_value_counts.mean(),se_value_counts.var())
 
     # word_count_key で指定したカラムの要素の文字数を新しい列に追記してbarプロットする
     # 文字数を格納する新しい列の名前
@@ -31,11 +39,16 @@ if __name__ == "__main__":
     
     # 軸目盛りのためのユニークな文字数のリスト
     list_unique_nums = []
-    # 新しい列に文字列を格納し, ユニークな文字数で list_unique_nums を更新していく
+    # 新しい列に文字数を格納し, ユニークな文字数で list_unique_nums を更新していく
     for a_wck, wck in zip(list_applied_wck,args.word_count_key):
         df[a_wck] = df[wck].apply(lambda x:len(x))
         list_unique_nums.extend(df[a_wck].unique().tolist())
-    
+
+        # 文字数の value_counts
+        se_vc_wck = df[a_wck].value_counts()
+        # 最大値, 最小値, モード, 平均, 分散を出力
+        ic(a_wck,se_vc_wck.max(),se_vc_wck.min(),df[a_wck].mode(),se_vc_wck.var(),se_vc_wck.mean())
+
     # 再度ユニークな文字数のリストを取得してソート
     list_unique_nums = sorted(list(set(list_unique_nums)))
     # 軸ラベル
