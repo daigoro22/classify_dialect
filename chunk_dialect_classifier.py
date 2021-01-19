@@ -47,7 +47,7 @@ class CharacterOneHotEncoder(OneHotEncoder):
         >>> df=pd.DataFrame({'standard':['アイ','ウエ'],'dialect':['ウエ','オ'],'pref':['gunma','tokyo']})
         >>> classes = ['ア','イ','ウ','エ']
         >>> encoder = CharacterOneHotEncoder(classes=classes,categories='auto',sparse=False,dtype=np.float32)
-        >>> encoder.get_one_hot(df,'standard')
+        >>> encoder.get_encoded(df,'standard')
                                                standard
         0  [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]]
         1  [[0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
@@ -79,4 +79,4 @@ if __name__ == "__main__":
     classes = ['ア','イ','ウ','エ']
 
     encoder = CharacterOneHotEncoder(classes=classes,categories='auto',sparse=False,dtype=np.float32)
-    print(encoder.get_one_hot(df,'standard'))
+    print(encoder.get_encoded(df,'standard'))

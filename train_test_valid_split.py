@@ -74,7 +74,7 @@ if __name__ == "__main__":
         classes += [str(n) for n in list(range(10))]
         # 伸ばし棒, 鼻濁音, 未知語, 人物名
         classes += ['ー','゜','*','X']
-        encoder  = CharacterOneHotEncoder(classes=classes,sparse=False)
+        encoder  = CharacterOneHotEncoder(classes=classes,sparse=False,dtype=np.float32)
     else:
         index              = ['DIALECT','STANDARD','PFT']
         apply_atoi_columns = []
