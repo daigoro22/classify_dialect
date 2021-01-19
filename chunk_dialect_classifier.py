@@ -36,7 +36,7 @@ class CharacterOneHotEncoder(OneHotEncoder):
         self.fit(array_classes)
         self.len_enc  = len(self.categories_[0])
     
-    def get_one_hot(self,df:pd.DataFrame,label:str):
+    def get_encoded(self,df:pd.DataFrame,label:str):
         """文字レベルの one-hotベクトルを pd.DataFrame の１カラムから取得する.
         Args:
             df (pd.DataFrame): one-hot ベクトルを取得したいデータ列が格納された DataFrame.
